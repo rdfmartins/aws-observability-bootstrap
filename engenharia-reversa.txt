@@ -1,0 +1,40 @@
+1. O Cenário "Antes" (A Dor Oculta)
+  Pelo texto "atuei em ajustes" e "evitar crescimento excessivo", o cenário era quase certamente este:
+
+   * O "Servidor de Estimação" (Pet): Existia uma instância EC2 rodando Grafana (para dashboards) com um Nginx na frente (para segurança/HTTPS).
+   * O Problema Silencioso: Ninguém configurou o logrotate. O Nginx estava escrevendo no access.log e error.log há meses.
+   * O Gatilho (The Incident): Provavelmente o disco encheu (100% Usage). O servidor travou. O Grafana caiu. A equipe ficou "cega" sem métricas.
+       * Por que? Logs de acesso HTTP são verbosos. Um bot varrendo o IP ou um pico de tráfego pode gerar gigabytes de texto em horas.
+
+  2. A Solução Aplicada (A História da Imagem)
+  Ela não apenas "limpou o disco". Ela aplicou SRE (Site Reliability Engineering) para garantir que o problema não voltasse.
+
+   * A "Hemostasia" (Estancar o sangue): Implementou o logrotate (Fase 1 do nosso projeto). Agora, os logs são rotacionados, comprimidos e descartados após X dias. O disco nunca mais encherá por causa
+     disso.
+   * A Evolução (De Pet para Cattle): Ela percebeu que aquele servidor era frágil. Se ele morresse, ela teria que instalar tudo de novo manualmente.
+       * Ação: Criou uma AMI (Imagem) daquele estado saudável.
+       * Ação: Colocou em Auto Scaling.
+       * Detalhe Senior: Aqui, o Auto Scaling provavelmente não é para "escala massiva" (ter 50 servidores), mas para Self-Healing (Auto-recuperação). Se a instância travar, a AWS mata ela e sobe uma
+         nova igualzinha baseada na AMI, sem intervenção humana.
+
+  ---
+
+  3. Onde você aplica isso? (Casos de Uso Reais)
+
+  Esse padrão (Logrotate + AMI + ASG) é a "tábua de salvação" em 3 cenários que você encontrará muito:
+
+  Cenário A: O Proxy Reverso (O caso da imagem)
+   * Contexto: Você tem um Grafana, um Jenkins ou um Jira interno. Você coloca um Nginx na frente para fazer SSL/HTTPS.
+   * O Risco: Esses serviços geram logs massivos. Se o disco enche, o serviço para.
+   * A Solução: Logrotate agressivo. Se o log não é crucial para auditoria legal, rotaciona a cada 100MB e guarda só os últimos 5.
+
+  Cenário B: A Aplicação Legada "Caixa Preta"
+   * Contexto: Uma aplicação Java/PHP antiga que escreve logs em arquivo (/var/www/app/logs/debug.log) e não envia para o CloudWatch/Datadog.
+   * O Risco: O desenvolvedor esqueceu o nível de log em DEBUG. O arquivo cresce 10GB por dia.
+   * A Solução: Você não consegue mudar o código (é legado), então você usa a infraestrutura (Logrotate) para "domar" a aplicação, forçando a limpeza do disco.
+
+  Cenário C: O Bastion Host (Jumphost)
+   * Contexto: O servidor que todos usam para acessar a rede privada via SSH.
+   * O Risco: Logs de autenticação (/var/log/auth.log ou secure) e auditoria.
+   * A Solução: Aqui a rotação é vital para Compliance. Você precisa garantir que os logs sejam salvos e enviados para fora (S3/CloudWatch) antes de serem rotacionados, para auditoria de quem acessou o
+     quê.
