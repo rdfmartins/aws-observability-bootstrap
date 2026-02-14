@@ -1,0 +1,57 @@
+# Projeto SRE: Pipeline de Observabilidade e Resiliência AWS
+
+## 1. O Contexto (Engenharia Reversa do Problema)
+Este projeto não nasce no vácuo. Ele é a resposta técnica a um cenário clássico de falha em servidores "Pet" (de estimação):
+*   **O Incidente:** Um servidor de aplicação (Nginx/Grafana) trava subitamente.
+*   **A Causa Raiz:** Disco cheio (100% Disk Usage) devido a logs de acesso descontrolados.
+*   **O Impacto:** Downtime da aplicação e "cegueira" do monitoramento.
+*   **A Solução Proposta:** Implementar uma arquitetura de "Imunidade Automática" (Logrotate) e "Cura Automática" (Auto Scaling), validada por um teste de caos.
+
+---
+
+## 2. A Estratégia: O Ciclo do Herói (Build -> Break -> Fix)
+Não vamos apenas configurar; vamos provar a resiliência.
+1.  **Build:** Subimos a infraestrutura correta com monitoramento ativo.
+2.  **Break (Caos):** Simulamos um ataque/erro que lota o disco artificialmente.
+3.  **Fix:** O sistema reage (Alerta CloudWatch) e a automação (Logrotate) resolve o problema, ou o Auto Scaling substitui a instância doente.
+
+---
+
+## 3. Proposta de Projeto em Fases
+
+### Fase 1: Os Artefatos e a Preparação do Caos (Local)
+Focaremos na criação dos scripts que vivem dentro da máquina.
+*   **Objetivo:** Ter o remédio (`nginx.logrotate`), a vacina (`setup.sh` instalando Nginx + CloudWatch Agent) e o veneno (`chaos_maker.sh`).
+*   **Insight Arquitetural (O Ponto Cego do Hypervisor):**
+    *   Por padrão, a AWS monitora CPU e Rede (Hypervisor Level). Ela *não enxerga* o quanto de Disco ou RAM está sendo usado dentro do SO (OS Level).
+    *   **Decisão:** Incluímos a coleta de **Memória (mem_used_percent)** junto com o Disco no `cloudwatch_agent.json` para estabelecer uma **Baseline de Observabilidade** completa, cobrindo os dois recursos finitos mais críticos que causam travamento.
+*   **Entregáveis:** 
+    *   `configs/nginx.logrotate`
+    *   `configs/cloudwatch_agent.json` (Monitoramento de Disco + Memória)
+    *   `scripts/setup.sh` (Atualizado com instalação do Agente)
+    *   `scripts/chaos_maker.sh` (Script de geração de carga)
+
+### Fase 2: Fundações de Segurança e Observabilidade (IAM & Security)
+Antes de subir servidores, preparamos as permissões.
+*   **Objetivo:** Criar o Security Group (apenas porta 80) e a IAM Role.
+*   **Diferencial Sênior:** A Role não permitirá apenas acesso via terminal (SSM), mas também **escrita de métricas** no CloudWatch (para vermos o gráfico do disco subindo).
+*   **Entregáveis:** Terraform (`security.tf`, `iam.tf`).
+
+### Fase 3: A Imagem e o Modelo (Compute & Launch Template)
+A receita do servidor imutável.
+*   **Objetivo:** Definir o Launch Template que une a infraestrutura (T3.micro) com a aplicação (User Data da Fase 1).
+*   **Entregáveis:** Terraform (`compute.tf`, `user_data.sh`).
+
+### Fase 4: Elasticidade e Ciclo de Vida (Auto Scaling)
+A garantia de disponibilidade.
+*   **Objetivo:** Criar o ASG que garante que, se a instância morrer (pelo teste de caos ou outro motivo), outra nasça imediatamente.
+*   **Entregáveis:** Terraform (`asg.tf`, `outputs.tf`).
+
+### Fase 5: O Game Day (Simulação de Incidente)
+A prova de fogo.
+*   **Ação:** 
+    1. Acessar a instância via SSM.
+    2. Executar `chaos_maker.sh` para levar o disco a 98%.
+    3. Observar o **Alarme do CloudWatch** disparar.
+    4. Observar o Logrotate atuar (ou o ASG reciclar a máquina).
+    5. Validar o retorno à normalidade.
