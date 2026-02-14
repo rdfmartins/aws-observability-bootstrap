@@ -7,10 +7,11 @@ echo "[INFO] Iniciando provisionamento do servidor de Observabilidade..."
 # 1. Instalação de Pacotes Base (Nginx + CloudWatch Agent)
 # ------------------------------------------------------------------
 echo "[INFO] Atualizando sistema e instalando dependências..."
+export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y nginx wget
 
-# Baixa e instala o Amazon CloudWatch Agent (versão Ubuntu/Debian)
+# Baixa e instala o Amazon CloudWatch Agent
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
 dpkg -i -E ./amazon-cloudwatch-agent.deb
 
@@ -48,25 +49,16 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
     },
     "metrics": {
         "append_dimensions": {
-            "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
-            "ImageId": "${aws:ImageId}",
-            "InstanceId": "${aws:InstanceId}",
-            "InstanceType": "${aws:InstanceType}"
+            "InstanceId": "${aws:InstanceId}"
         },
         "metrics_collected": {
             "disk": {
-                "measurement": [
-                    "used_percent"
-                ],
+                "measurement": ["used_percent"],
                 "metrics_collection_interval": 60,
-                "resources": [
-                    "/"
-                ]
+                "resources": ["/"]
             },
             "mem": {
-                "measurement": [
-                    "mem_used_percent"
-                ],
+                "measurement": ["mem_used_percent"],
                 "metrics_collection_interval": 60
             }
         }
@@ -74,19 +66,38 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
 }
 EOF
 
-# Inicia o agente carregando a configuração
+# Inicia o agente
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
-    -a fetch-config \
-    -m ec2 \
-    -s \
-    -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
+    -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
 
 # ------------------------------------------------------------------
-# 4. Finalização
+# 4. Ferramenta de Caos (Chaos Engineering)
 # ------------------------------------------------------------------
-# Otimização do Journald para persistência
+echo "[INFO] Instalando script de Caos em /usr/local/bin/chaos-maker..."
+cat <<'EOF' > /usr/local/bin/chaos-maker
+#!/bin/bash
+LOG_FILE="/var/log/nginx/access.log"
+AVAILABLE_SPACE=$(df / --output=avail | tail -1)
+BUFFER_KB=500000
+FILL_AMOUNT_KB=$((AVAILABLE_SPACE - BUFFER_KB))
+
+if [ $FILL_AMOUNT_KB -le 0 ]; then
+    echo "[CHAOS] Disco já está cheio."
+    exit 1
+fi
+
+echo "[CHAOS] Preenchendo $((FILL_AMOUNT_KB / 1024)) MB em $LOG_FILE..."
+fallocate -l ${FILL_AMOUNT_KB}K $LOG_FILE || head -c ${FILL_AMOUNT_KB}K < /dev/zero >> $LOG_FILE
+echo "[CHAOS] Concluído. Verifique 'df -h'."
+EOF
+
+chmod +x /usr/local/bin/chaos-maker
+
+# ------------------------------------------------------------------
+# 5. Finalização
+# ------------------------------------------------------------------
 mkdir -p /var/log/journal
 sed -i 's/#Storage=auto/Storage=persistent/' /etc/systemd/journald.conf
 systemctl restart systemd-journald
 
-echo "[SUCCESS] Provisionamento concluído: Nginx + Logrotate + CloudWatch Agent."
+echo "[SUCCESS] Provisionamento concluído."
