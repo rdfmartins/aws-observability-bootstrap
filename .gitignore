@@ -1,0 +1,45 @@
+# --- Arquivos de Prototipagem e Referência ---
+# (Imagens e textos de planejamento que não fazem parte do código final)
+SRE-log-e-infra-na-aws-novo-projeto.png
+proposta-projeto-sre-aws-infra-logs.txt
+engenharia-reversa
+*.png
+*.jpg
+*.jpeg
+*.pdf
+
+# --- Terraform ---
+# Ignora o diretório de plugins e binários do Terraform
+.terraform/
+.terraform.lock.hcl
+
+# Ignora arquivos de estado (CONTÊM SEGREDOS DA INFRAESTRUTURA)
+*.tfstate
+*.tfstate.*
+
+# Ignora arquivos de variáveis sensíveis
+*.tfvars
+*.tfvars.json
+
+# Ignora arquivos de override e logs do Terraform
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+crash.log
+crash.*.log
+
+# --- Sistema Operacional ---
+.DS_Store
+Thumbs.db
+*~
+*.swp
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# --- Logs e Temporários ---
+*.log
+tmp/
+temp/
