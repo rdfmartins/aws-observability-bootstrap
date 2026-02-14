@@ -1,0 +1,15 @@
+/var/log/nginx/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        if [ -f /var/run/nginx.pid ]; then
+            systemctl reload nginx > /dev/null 2>&1 || true
+        fi
+    endscript
+}
