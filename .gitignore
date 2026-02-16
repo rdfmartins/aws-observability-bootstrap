@@ -1,6 +1,6 @@
 # --- Arquivos de Prototipagem e Referência ---
 # (Imagens e textos de planejamento que não fazem parte do código final)
-*.png
+# *.png
 *.jpg
 *.jpeg
 *.pdf
