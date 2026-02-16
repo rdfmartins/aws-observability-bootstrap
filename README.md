@@ -38,7 +38,15 @@ O script de caos (`chaos-maker`) roda como `root` (sudo), mas o Nginx roda como 
 Em Linux, deletar um arquivo que está aberto por um processo (Nginx) **não libera espaço em disco**. O arquivo entra em estado "deleted but open".
 *   **Solução:** Utilizamos a diretiva `postrotate` com `systemctl reload nginx` no Logrotate. Isso força o Nginx a fechar o descritor de arquivo antigo e abrir um novo, efetivamente liberando o espaço em disco.
 
-## 5. Estratégia de Monitoramento (ADR - Architectural Decision Record)
+## 5. Estratégia de Métricas (Deep Dive: CloudWatch Dimensions)
+
+A integração entre Agente e Alarme exigiu uma "cirurgia" nas dimensões métricas:
+
+*   **O Desafio (Métricas Órfãs):** Por padrão, o CloudWatch Agent envia métricas de disco com as dimensões `device` (ex: `xvda1`) e `fstype` (ex: `ext4`). O Alarme criado via Terraform, no entanto, é agnóstico à infraestrutura subjacente e espera apenas `AutoScalingGroupName` e `path`.
+*   **O Resultado:** O Alarme nunca disparava porque as dimensões não davam "Match Exato".
+*   **A Solução:** Configuramos o Agente com `drop_device: true` e `aggregation_dimensions`. Isso instrui o Agente a remover os detalhes de hardware e emitir uma métrica "limpa", agregada por ASG, permitindo que um único alarme monitore qualquer tipo de instância (T2, T3, C5) sem ajustes manuais.
+
+## 6. Comandos Úteis (SRE Toolbox)
 *   **Desafio:** O CloudWatch nativo monitora apenas métricas de Hypervisor (CPU, Rede), ignorando o uso de Disco e RAM.
 *   **Solução:** Implementação de **Custom Metrics** via CloudWatch Agent (Métricas de OS-Level).
 *   **Agregação por ASG:** O agente envia dimensões de `AutoScalingGroupName`, `ImageId` e `InstanceType`. Isso permite criar alarmes consolidados que sobrevivem à efemeridade das instâncias.

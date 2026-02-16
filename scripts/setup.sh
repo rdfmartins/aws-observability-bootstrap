@@ -75,7 +75,8 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
             "disk": {
                 "measurement": ["used_percent"],
                 "metrics_collection_interval": 60,
-                "resources": ["/"]
+                "resources": ["/"],
+                "drop_device": true
             },
             "mem": {
                 "measurement": ["mem_used_percent"],
