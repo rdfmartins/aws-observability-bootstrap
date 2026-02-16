@@ -52,7 +52,8 @@ echo "[INFO] Atalho 'remediate' criado em /usr/local/bin/."
 # 3. Configuração do CloudWatch Agent (O Monitor)
 # ------------------------------------------------------------------
 echo "[INFO] Configurando CloudWatch Agent (Versão Completa)..."
-# CORREÇÃO CRÍTICA: 'aggregation_dimensions' e 'drop_*' garantem métricas compatíveis com o alarme do Terraform.
+# CORREÇÃO CRÍTICA: Limpeza de métricas. Envia APENAS agregação por ASG.
+# Remove ruído de métricas individuais por instância.
 cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
 {
     "agent": {
@@ -61,14 +62,10 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
     },
     "metrics": {
         "aggregation_dimensions": [
-            ["AutoScalingGroupName"],
-            ["InstanceId"]
+            ["AutoScalingGroupName"]
         ],
         "append_dimensions": {
-            "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
-            "InstanceId": "${aws:InstanceId}",
-            "ImageId": "${aws:ImageId}",
-            "InstanceType": "${aws:InstanceType}"
+            "AutoScalingGroupName": "${aws:AutoScalingGroupName}"
         },
         "metrics_collected": {
             "disk": {
