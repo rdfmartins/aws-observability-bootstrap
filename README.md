@@ -22,7 +22,23 @@ Diferente de um setup passivo, este projeto inclui um fluxo completo de simulaç
 3.  **Observação:** Monitoramento do Alarme de Disco no Console do CloudWatch.
 4.  **Remediação:** Execução do comando `remediate` (atalho para `logrotate -f`) para recuperação imediata de espaço.
 
-## 4. Estratégia de Monitoramento (ADR - Architectural Decision Record)
+## 4. Estudo de Caso: Desafios de Engenharia (Nginx & Linux)
+
+Este projeto vai além da infraestrutura básica. Ele resolve problemas reais de operação de sistemas Linux em nuvem:
+
+### A. O Desafio da Corrida de Boot (Race Condition)
+O script de *User Data* compete com o boot do sistema operacional. Se o Nginx tentar subir antes da rede estar pronta, ele falha.
+*   **Solução:** Implementamos `systemctl enable --now nginx` estrategicamente após a instalação do pacote, garantindo que o serviço entre na árvore de dependências do `systemd` corretamente.
+
+### B. O Dilema das Permissões (Root vs www-data)
+O script de caos (`chaos-maker`) roda como `root` (sudo), mas o Nginx roda como `www-data` (segurança). Se o script criar o arquivo de log gigante com permissões de root, o Nginx trava por "Permission Denied" antes mesmo do disco encher.
+*   **Solução:** O script aplica `chown www-data:adm` no arquivo gerado, garantindo que o teste simule **exaustão de recurso (disco)** e não **falha de permissão**.
+
+### C. O Problema do Arquivo Fantasma (File Descriptors)
+Em Linux, deletar um arquivo que está aberto por um processo (Nginx) **não libera espaço em disco**. O arquivo entra em estado "deleted but open".
+*   **Solução:** Utilizamos a diretiva `postrotate` com `systemctl reload nginx` no Logrotate. Isso força o Nginx a fechar o descritor de arquivo antigo e abrir um novo, efetivamente liberando o espaço em disco.
+
+## 5. Estratégia de Monitoramento (ADR - Architectural Decision Record)
 *   **Desafio:** O CloudWatch nativo monitora apenas métricas de Hypervisor (CPU, Rede), ignorando o uso de Disco e RAM.
 *   **Solução:** Implementação de **Custom Metrics** via CloudWatch Agent (Métricas de OS-Level).
 *   **Agregação por ASG:** O agente envia dimensões de `AutoScalingGroupName`, `ImageId` e `InstanceType`. Isso permite criar alarmes consolidados que sobrevivem à efemeridade das instâncias.
