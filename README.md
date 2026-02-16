@@ -22,7 +22,12 @@ Diferente de um setup passivo, este projeto inclui um script de simulação de f
 3.  **Observação:** Validação do disparo do Alarme no CloudWatch.
 4.  **Remediação:** Execução do Logrotate para recuperação imediata de espaço e estabilização do serviço.
 
-## 4. Tecnologias Utilizadas
+## 4. Estratégia de Monitoramento (ADR - Architectural Decision Record)
+*   **Desafio:** O CloudWatch nativo monitora apenas métricas de Hypervisor (CPU, Rede), ignorando o uso de Disco e RAM (nível de SO).
+*   **Solução:** Implementação de **Custom Metrics** via CloudWatch Agent.
+*   **Manobra de ASG:** Configuramos o agente para enviar a dimensão `AutoScalingGroupName`. Isso permite criar **um único alarme** agregado que monitora o disco de qualquer instância efêmera do grupo, eliminando a necessidade de gerenciar alarmes individuais por ID de instância.
+
+## 5. Tecnologias Utilizadas
 *   **AWS Cloud:** EC2, Auto Scaling, IAM, CloudWatch, SSM.
 *   **IaC:** Terraform.
 *   **Serviços:** Nginx, Logrotate, CloudWatch Agent.

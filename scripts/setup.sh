@@ -49,7 +49,8 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
     },
     "metrics": {
         "append_dimensions": {
-            "InstanceId": "${aws:InstanceId}"
+            "InstanceId": "${aws:InstanceId}",
+            "AutoScalingGroupName": "${aws:AutoScalingGroupName}"
         },
         "metrics_collected": {
             "disk": {

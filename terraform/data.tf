@@ -12,7 +12,3 @@ data "aws_subnets" "default" {
     values = [data.aws_vpc.default.id]
   }
 }
-
-# Data Source: Busca informações da conta atual (Account ID, User ID)
-# Útil para construção de ARNs dinâmicos, se necessário.
-data "aws_caller_identity" "current" {}
