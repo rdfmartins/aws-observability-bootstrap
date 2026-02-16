@@ -11,7 +11,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y nginx wget
 
-# Garante que o Nginx inicie no boot e rode agora (Pontos 4 e 5 da sua lista)
+# Garante que o Nginx inicie no boot e rode agora
 echo "[INFO] Habilitando serviço Nginx..."
 systemctl enable nginx
 systemctl start nginx
@@ -24,12 +24,12 @@ dpkg -i -E ./amazon-cloudwatch-agent.deb
 # 2. Configuração do Logrotate (A Vacina)
 # ------------------------------------------------------------------
 echo "[INFO] Configurando Logrotate..."
+# REMOVIDO 'delaycompress' para garantir compressão imediata no teste
 cat <<'EOF' > /etc/logrotate.d/nginx
 /var/log/nginx/*.log {
     daily
     rotate 14
     compress
-    delaycompress
     missingok
     notifempty
     create 0640 www-data adm
@@ -42,7 +42,7 @@ cat <<'EOF' > /etc/logrotate.d/nginx
 }
 EOF
 
-# Cria um atalho para facilitar o teste de remediação manual (Ponto 2)
+# Cria um atalho para facilitar o teste de remediação manual
 echo '#!/bin/bash' > /usr/local/bin/remediate
 echo 'logrotate -f -v /etc/logrotate.d/nginx' >> /usr/local/bin/remediate
 chmod +x /usr/local/bin/remediate
@@ -52,7 +52,8 @@ echo "[INFO] Atalho 'remediate' criado em /usr/local/bin/."
 # 3. Configuração do CloudWatch Agent (O Monitor)
 # ------------------------------------------------------------------
 echo "[INFO] Configurando CloudWatch Agent (Versão Completa)..."
-# Incorporando as dimensões extras que você gostou (Ponto 1)
+# CORREÇÃO CRÍTICA: 'aggregation_dimensions' permite criar métricas agregadas por ASG.
+# Sem isso, o agente envia métricas com InstanceId, quebrando o alarme do Terraform.
 cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
 {
     "agent": {
@@ -60,9 +61,13 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
         "run_as_user": "root"
     },
     "metrics": {
+        "aggregation_dimensions": [
+            ["AutoScalingGroupName"],
+            ["InstanceId"]
+        ],
         "append_dimensions": {
-            "InstanceId": "${aws:InstanceId}",
             "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
+            "InstanceId": "${aws:InstanceId}",
             "ImageId": "${aws:ImageId}",
             "InstanceType": "${aws:InstanceType}"
         },
@@ -85,7 +90,7 @@ EOF
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
     -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
 
-# Valida se o agente iniciou corretamente (Ponto 4)
+# Valida se o agente iniciou corretamente
 sleep 5
 echo "[INFO] Verificando status do CloudWatch Agent..."
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
@@ -107,7 +112,13 @@ if [ $FILL_AMOUNT_KB -le 0 ]; then
 fi
 
 echo "[CHAOS] Preenchendo $((FILL_AMOUNT_KB / 1024)) MB em $LOG_FILE..."
+# Usa fallocate para criar o arquivo gigante
 fallocate -l ${FILL_AMOUNT_KB}K $LOG_FILE || head -c ${FILL_AMOUNT_KB}K < /dev/zero >> $LOG_FILE
+
+# CORREÇÃO CRÍTICA: Garante permissões corretas para o Nginx continuar escrevendo
+chown www-data:adm $LOG_FILE
+chmod 640 $LOG_FILE
+
 echo "[CHAOS] Concluído. Verifique 'df -h'."
 echo "[CHAOS] Para remediar, execute: sudo remediate"
 EOF
