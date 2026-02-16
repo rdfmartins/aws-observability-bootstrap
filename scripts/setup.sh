@@ -52,8 +52,7 @@ echo "[INFO] Atalho 'remediate' criado em /usr/local/bin/."
 # 3. Configuração do CloudWatch Agent (O Monitor)
 # ------------------------------------------------------------------
 echo "[INFO] Configurando CloudWatch Agent (Versão Completa)..."
-# CORREÇÃO CRÍTICA: 'aggregation_dimensions' permite criar métricas agregadas por ASG.
-# Sem isso, o agente envia métricas com InstanceId, quebrando o alarme do Terraform.
+# CORREÇÃO CRÍTICA: 'aggregation_dimensions' e 'drop_*' garantem métricas compatíveis com o alarme do Terraform.
 cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
 {
     "agent": {
