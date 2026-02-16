@@ -16,24 +16,29 @@ Este projeto simula esse cenário crítico:
 *   **Automação de Manutenção:** Configuração idempotente de Logrotate para compressão e rotação diária.
 
 ## 3. O Ciclo do Game Day (Chaos Engineering)
-Diferente de um setup passivo, este projeto inclui um script de simulação de falha:
-1.  **Provisionamento:** A instância nasce monitorada e configurada.
-2.  **Injeção de Caos:** O script `chaos_maker.sh` preenche artificialmente o disco até 98%.
-3.  **Observação:** Validação do disparo do Alarme no CloudWatch.
-4.  **Remediação:** Execução do Logrotate para recuperação imediata de espaço e estabilização do serviço.
+Diferente de um setup passivo, este projeto inclui um fluxo completo de simulação de incidente:
+1.  **Provisionamento:** A instância nasce monitorada e configurada com Nginx e CW Agent.
+2.  **Injeção de Caos:** O script `chaos-maker` preenche o disco até ~98%.
+3.  **Observação:** Monitoramento do Alarme de Disco no Console do CloudWatch.
+4.  **Remediação:** Execução do comando `remediate` (atalho para `logrotate -f`) para recuperação imediata de espaço.
 
 ## 4. Estratégia de Monitoramento (ADR - Architectural Decision Record)
-*   **Desafio:** O CloudWatch nativo monitora apenas métricas de Hypervisor (CPU, Rede), ignorando o uso de Disco e RAM (nível de SO).
-*   **Solução:** Implementação de **Custom Metrics** via CloudWatch Agent.
-*   **Manobra de ASG:** Configuramos o agente para enviar a dimensão `AutoScalingGroupName`. Isso permite criar **um único alarme** agregado que monitora o disco de qualquer instância efêmera do grupo, eliminando a necessidade de gerenciar alarmes individuais por ID de instância.
+*   **Desafio:** O CloudWatch nativo monitora apenas métricas de Hypervisor (CPU, Rede), ignorando o uso de Disco e RAM.
+*   **Solução:** Implementação de **Custom Metrics** via CloudWatch Agent (Métricas de OS-Level).
+*   **Agregação por ASG:** O agente envia dimensões de `AutoScalingGroupName`, `ImageId` e `InstanceType`. Isso permite criar alarmes consolidados que sobrevivem à efemeridade das instâncias.
 
-## 5. Tecnologias Utilizadas
+## 5. Comandos Úteis (SRE Toolbox)
+Após conectar via SSM, utilize os comandos customizados:
+*   `chaos-maker`: Simula a exaustão de disco.
+*   `remediate`: Força a rotação de logs e libera espaço.
+*   `df -h /`: Valida a recuperação do sistema.
+
+## 6. Tecnologias Utilizadas
 *   **AWS Cloud:** EC2, Auto Scaling, IAM, CloudWatch, SSM.
-*   **IaC:** Terraform.
-*   **Serviços:** Nginx, Logrotate, CloudWatch Agent.
-*   **Scripts:** Bash (Setup e Chaos Generation).
+*   **IaC:** Terraform (validado com `fmt`, `validate` e `tflint`).
+*   **Serviços:** Nginx (habilitado no boot), Logrotate, CloudWatch Agent.
 
-## 5. Limitações e Declaração de Escopo (Integridade Técnica)
+## 7. Limitações e Declaração de Escopo (Integridade Técnica)
 Este projeto é um **Laboratório de Conceito (PoC)** e não deve ser utilizado em produção sem as seguintes melhorias:
 *   **Segurança:** Utiliza HTTP na porta 80. Para produção, implementar Application Load Balancer (ALB) com certificado SSL (ACM).
 *   **Rede:** Provisionado em Default VPC para simplicidade. Recomenda-se o uso de Subnets Privadas com NAT Gateway.
