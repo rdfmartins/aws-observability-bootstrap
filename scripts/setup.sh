@@ -11,10 +11,8 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y nginx wget
 
-# Garante que o Nginx inicie no boot e rode agora
-echo "[INFO] Habilitando serviço Nginx..."
-systemctl enable nginx
-systemctl start nginx
+# Habilita e inicia o Nginx no bootstrap
+systemctl enable --now nginx
 
 # Baixa e instala o Amazon CloudWatch Agent
 wget https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
@@ -24,7 +22,7 @@ dpkg -i -E ./amazon-cloudwatch-agent.deb
 # 2. Configuração do Logrotate (A Vacina)
 # ------------------------------------------------------------------
 echo "[INFO] Configurando Logrotate..."
-# REMOVIDO 'delaycompress' para garantir compressão imediata no teste
+# Rotação diária com compressão imediata (sem delaycompress) para testes de Game Day
 cat <<'EOF' > /etc/logrotate.d/nginx
 /var/log/nginx/*.log {
     daily
@@ -42,18 +40,16 @@ cat <<'EOF' > /etc/logrotate.d/nginx
 }
 EOF
 
-# Cria um atalho para facilitar o teste de remediação manual
+# Cria um atalho para remediação manual durante simulações
 echo '#!/bin/bash' > /usr/local/bin/remediate
 echo 'logrotate -f -v /etc/logrotate.d/nginx' >> /usr/local/bin/remediate
 chmod +x /usr/local/bin/remediate
-echo "[INFO] Atalho 'remediate' criado em /usr/local/bin/."
 
 # ------------------------------------------------------------------
-# 3. Configuração do CloudWatch Agent (O Monitor)
+# 3. Configuração do CloudWatch Agent (Métricas Agregadas)
 # ------------------------------------------------------------------
-echo "[INFO] Configurando CloudWatch Agent (Versão Completa)..."
-# CORREÇÃO CRÍTICA: Limpeza de métricas. Envia APENAS agregação por ASG.
-# Remove ruído de métricas individuais por instância.
+echo "[INFO] Configurando CloudWatch Agent..."
+# Agregação por ASG e remoção de dimensões de hardware (device/fstype) para match de alarme
 cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
 {
     "agent": {
@@ -72,7 +68,8 @@ cat <<'EOF' > /opt/aws/amazon-cloudwatch-agent/bin/config.json
                 "measurement": ["used_percent"],
                 "metrics_collection_interval": 60,
                 "resources": ["/"],
-                "drop_device": true
+                "drop_device": true,
+                "drop_fstype": true
             },
             "mem": {
                 "measurement": ["mem_used_percent"],
@@ -87,15 +84,10 @@ EOF
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
     -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/bin/config.json
 
-# Valida se o agente iniciou corretamente
-sleep 5
-echo "[INFO] Verificando status do CloudWatch Agent..."
-/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -m ec2 -a status
-
 # ------------------------------------------------------------------
 # 4. Ferramenta de Caos (Chaos Engineering)
 # ------------------------------------------------------------------
-echo "[INFO] Instalando script de Caos em /usr/local/bin/chaos-maker..."
+echo "[INFO] Instalando script chaos-maker em /usr/local/bin/..."
 cat <<'EOF' > /usr/local/bin/chaos-maker
 #!/bin/bash
 LOG_FILE="/var/log/nginx/access.log"
@@ -104,20 +96,18 @@ BUFFER_KB=500000
 FILL_AMOUNT_KB=$((AVAILABLE_SPACE - BUFFER_KB))
 
 if [ $FILL_AMOUNT_KB -le 0 ]; then
-    echo "[CHAOS] Disco já está cheio."
+    echo "[CHAOS] Disco cheio."
     exit 1
 fi
 
-echo "[CHAOS] Preenchendo $((FILL_AMOUNT_KB / 1024)) MB em $LOG_FILE..."
-# Usa fallocate para criar o arquivo gigante
+echo "[CHAOS] Injetando $((FILL_AMOUNT_KB / 1024)) MB em $LOG_FILE..."
 fallocate -l ${FILL_AMOUNT_KB}K $LOG_FILE || head -c ${FILL_AMOUNT_KB}K < /dev/zero >> $LOG_FILE
 
-# CORREÇÃO CRÍTICA: Garante permissões corretas para o Nginx continuar escrevendo
+# Garante permissões para o Nginx (www-data)
 chown www-data:adm $LOG_FILE
 chmod 640 $LOG_FILE
 
-echo "[CHAOS] Concluído. Verifique 'df -h'."
-echo "[CHAOS] Para remediar, execute: sudo remediate"
+echo "[CHAOS] Concluído. Remediar com: sudo remediate"
 EOF
 
 chmod +x /usr/local/bin/chaos-maker

@@ -79,7 +79,19 @@ Após conectar via SSM, utilize os comandos customizados:
 *   **IaC:** Terraform (validado com `fmt`, `validate` e `tflint`).
 *   **Serviços:** Nginx (habilitado no boot), Logrotate, CloudWatch Agent.
 
-## 7. Limitações e Declaração de Escopo (Integridade Técnica)
+## 9. Troubleshooting (Runbook)
+
+### A. Alarme em "Insufficient Data"
+*   **Sintoma:** O Alarme de Disco permanece sem dados no CloudWatch.
+*   **Causa:** Incompatibilidade de dimensões. O Alarme espera apenas `AutoScalingGroupName`, mas o Agente pode estar enviando dimensões extras de hardware (`device`, `fstype`).
+*   **Solução:** Validar no `setup.sh` se `drop_device` e `drop_fstype` estão como `true`. Use `aws cloudwatch list-metrics` para confirmar as dimensões que o CloudWatch está recebendo.
+
+### B. Disco Cheio após Remediação Manual
+*   **Sintoma:** O comando `remediate` roda, mas o espaço em disco não é liberado.
+*   **Causa:** O processo do Nginx mantém o descritor de arquivo aberto (*deleted but open*).
+*   **Solução:** Verifique se o comando `systemctl reload nginx` foi executado pelo `postrotate`. Utilize `lsof | grep deleted` para identificar arquivos zumbis segurando o espaço.
+
+## 10. Limitações e Declaração de Escopo (Integridade Técnica)
 Este projeto é um **Laboratório de Conceito (PoC)** e não deve ser utilizado em produção sem as seguintes melhorias:
 *   **Segurança:** Utiliza HTTP na porta 80. Para produção, implementar Application Load Balancer (ALB) com certificado SSL (ACM).
 *   **Rede:** Provisionado em Default VPC para simplicidade. Recomenda-se o uso de Subnets Privadas com NAT Gateway.
