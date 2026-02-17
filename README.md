@@ -2,7 +2,24 @@
 
 Este projeto implementa uma infraestrutura resiliente na AWS, focada na resolução automatizada de incidentes de exaustão de recursos (Disk Full). Através de uma abordagem de Engenharia de Caos, validamos como o Logrotate e o CloudWatch Agent atuam na manutenção da disponibilidade de um servidor Nginx.
 
-## 1. Contexto Arquitetural (Engenharia Reversa)
+## 1. Estrutura do Projeto
+```bash
+├── terraform/          # Infraestrutura como Código (IaC)
+│   ├── asg.tf          # Configuração de Auto Scaling e Elasticidade
+│   ├── cloudwatch.tf   # Definição de Alarmes de Disco e Memória
+│   ├── compute.tf      # Launch Template, AMI e User Data
+│   ├── data.tf         # Data Sources (VPC, Subnets, Tags)
+│   ├── iam.tf          # Permissões de Segurança (SSM, CW Agent)
+│   ├── security.tf     # Firewall (Security Groups)
+│   └── provider.tf     # Configuração AWS e Tags de FinOps
+├── scripts/            # Scripts de Automação
+│   ├── setup.sh        # Bootstrap completo (Nginx, Agentes, Configs)
+│   └── chaos_maker.sh  # Ferramenta de injeção de falha (Disk Fill)
+└── configs/            # Configurações de Aplicação
+    └── nginx.logrotate # Regra de rotação e compressão de logs
+```
+
+## 2. Contexto Arquitetural (Engenharia Reversa)
 Muitos incidentes de downtime em ambientes legados ocorrem por falhas triviais, como o preenchimento total do disco por logs de aplicação. 
 Este projeto simula esse cenário crítico:
 *   **O Problema:** Crescimento descontrolado de logs (`/var/log/nginx/access.log`).
