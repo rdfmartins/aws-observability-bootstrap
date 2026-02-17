@@ -1,4 +1,5 @@
-# AWS Observability & Resilience Bootstrap: O Ciclo do Caos
+# AWS Observability & Resilience Bootstrap
+# O Ciclo do Caos
 
 Este projeto implementa uma infraestrutura resiliente na AWS, focada na resolução automatizada de incidentes de exaustão de recursos (Disk Full). Através de uma abordagem de Engenharia de Caos, validamos como o Logrotate e o CloudWatch Agent atuam na manutenção da disponibilidade de um servidor Nginx.
 
