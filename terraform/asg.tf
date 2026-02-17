@@ -12,24 +12,32 @@ resource "aws_autoscaling_group" "web_asg" {
     version = "$Latest" # Sempre usa a versão mais nova do template
   }
 
-  # Configuração de Health Check para Teste de Caos
-  # Type = "EC2": A instância só é substituída se o Hypervisor detectar falha de hardware.
-  # Isso permite que a instância sobreviva ao "Disco Cheio" para que o Logrotate atue.
+  # Health Check do tipo EC2
   health_check_type         = "EC2"
   health_check_grace_period = 300
 
-  # Instance Refresh: Garante atualização sem downtime (Rolling Update)
   instance_refresh {
     strategy = "Rolling"
     preferences {
-      min_healthy_percentage = 0 # Permite recriar mesmo com 1 instância
+      min_healthy_percentage = 0
     }
   }
 
-  # Tagging: Propaga o nome para as instâncias EC2 criadas
+  # Tag Estática: Name
   tag {
     key                 = "Name"
     value               = "${var.project_name}-node"
     propagate_at_launch = true
+  }
+
+  # CORREÇÃO FINOPS: Propagação dinâmica das tags do Provider
+  # Garante que as tags de custo (Owner, Project) cheguem nas instâncias EC2
+  dynamic "tag" {
+    for_each = data.aws_default_tags.current.tags
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = true
+    }
   }
 }

@@ -5,10 +5,13 @@ data "aws_vpc" "default" {
 }
 
 # Data Source: Busca as Subnets da VPC Padrão
-# O ASG usará essas subnets para distribuir as instâncias (Multi-AZ).
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
 }
+
+# Data Source: Recupera as tags padrão definidas no Provider
+# Necessário para propagar tags de FinOps para o Auto Scaling Group
+data "aws_default_tags" "current" {}

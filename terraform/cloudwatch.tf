@@ -14,7 +14,6 @@ resource "aws_cloudwatch_metric_alarm" "disk_high" {
   # Dimensões: Devem bater EXATAMENTE com o que o CloudWatch Agent reporta.
   dimensions = {
     AutoScalingGroupName = aws_autoscaling_group.web_asg.name
-    path                 = "/"
   }
 
   # Configuração de Notificação (Opcional: Pode ser conectado a um SNS Topic no futuro)
