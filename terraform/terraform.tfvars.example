@@ -1,0 +1,5 @@
+# Exemplo de configuração de variáveis
+# Copie este arquivo para terraform.tfvars e ajuste os valores conforme necessário.
+
+aws_region   = "us-east-1"
+project_name = "sre-observability-bootstrap"
