@@ -66,9 +66,11 @@ A integração entre Agente e Alarme exigiu uma "cirurgia" nas dimensões métri
 ## 6. Comandos Úteis (SRE Toolbox)
 *   **Desafio:** O CloudWatch nativo monitora apenas métricas de Hypervisor (CPU, Rede), ignorando o uso de Disco e RAM.
 *   **Solução:** Implementação de **Custom Metrics** via CloudWatch Agent (Métricas de OS-Level).
-*   **Agregação por ASG:** O agente envia dimensões de `AutoScalingGroupName`, `ImageId` e `InstanceType`. Isso permite criar alarmes consolidados que sobrevivem à efemeridade das instâncias.
+*   **Agregação por ASG:** O agente envia dimensões de `AutoScalingGroupName`. Isso permite criar alarmes consolidados que sobrevivem à efemeridade das instâncias.
 
-## 5. Comandos Úteis (SRE Toolbox)
+> **Bônus (Observabilidade Estendida):** Além do foco principal em Disco, implementamos também o monitoramento de **Memória (RAM)**. Embora não seja o foco do teste de caos, essa métrica compõe o *baseline* essencial de saúde do sistema operacional, cobrindo os dois principais "pontos cegos" do hypervisor da AWS.
+
+## 6. Comandos Úteis (SRE Toolbox)
 Após conectar via SSM, utilize os comandos customizados:
 *   `chaos-maker`: Simula a exaustão de disco.
 *   `remediate`: Força a rotação de logs e libera espaço.
