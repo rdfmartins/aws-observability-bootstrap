@@ -2,6 +2,9 @@
 
 Este projeto implementa uma infraestrutura resiliente na AWS, focada na resolução automatizada de incidentes de exaustão de recursos (Disk Full). Através de uma abordagem de Engenharia de Caos, validamos como o Logrotate e o CloudWatch Agent atuam na manutenção da disponibilidade de um servidor Nginx.
 
+<img width="2752" height="1536" alt="unnamed (1)" src="https://github.com/user-attachments/assets/379a83a7-b441-4d63-b072-3a8ab81be210" />
+
+
 ## 1. Estrutura do Projeto
 ```bash
 ├── terraform/          # Infraestrutura como Código (IaC)
